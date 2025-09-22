@@ -6,8 +6,8 @@
 set -e # Exit on any error
 
 # Configuration
-CONTAINER_NAME="cyberark-local-test"
-IMAGE_NAME="cyberark-custom-provider-local"
+CONTAINER_NAME="cyberark-local-test" # container name for running in docker
+IMAGE_NAME="cyberark-custom-provider-local" # docker image name w/o tag
 PORT="8080"
 PROJECT_DIR="/home/azureuser/work/Bicep/azure-custom-resource-providers"
 CUSTOM_PROVIDER_DIR="$PROJECT_DIR/custom-provider"
