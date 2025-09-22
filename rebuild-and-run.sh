@@ -97,12 +97,6 @@ run_container() {
     # Load environment variables
     load_env_vars
 
-    # Set default values if not loaded from .env
-    CYBERARK_ID_TENANT_URL=${CYBERARK_ID_TENANT_URL:-"https://aao4987.id.cyberark.cloud"}
-    CYBERARK_PAM_USER=${CYBERARK_PAM_USER:-"dh_fezzik_bot2@cyberark.cloud.3357"}
-    CYBERARK_PAM_PASSWORD=${CYBERARK_PAM_PASSWORD:-"BlueWhaleMonday98%"}
-    CYBERARK_PCLOUD_URL=${CYBERARK_PCLOUD_URL:-"https://cybr-secrets.privilegecloud.cyberark.cloud"}
-
     docker run -d \
         --name $CONTAINER_NAME \
         -p $PORT:$PORT \
