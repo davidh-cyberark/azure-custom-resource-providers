@@ -181,6 +181,8 @@ main() {
 
     # Collect Azure configuration
     header "📋 Azure Configuration"
+    prompt_with_default "Project name (used for resource naming)" "cyberarkcp" PROJECT_NAME
+
     prompt_with_default "Azure region" "eastus" LOCATION
     prompt_with_default "Resource group name" "cyberark-custom-provider-rg" RESOURCE_GROUP
     validate_azure_name "$RESOURCE_GROUP" "resource-group" || exit 1
@@ -196,9 +198,9 @@ main() {
     ACR_LOGIN_SERVER="${ACR_NAME}.azurecr.io"
 
     echo
-    header "⚙️ Custom Provider Configuration"
-    prompt_with_default "Custom Provider name" "cyberark-custom-provider" CUSTOM_PROVIDER_NAME
-    prompt_with_default "Container image name" "cyberark-custom-provider:latest" CONTAINER_IMAGE
+    header "📦 Custom Provider Configuration"
+    prompt_with_default "Custom provider name" "cyberark-custom-provider" CUSTOM_PROVIDER_NAME
+    prompt_with_default "Custom provider container image name" "cyberark-custom-provider" CONTAINER_IMAGE_NAME
 
     echo
     header "🔐 CyberArk Configuration"
@@ -235,6 +237,7 @@ main() {
 LOCATION="$LOCATION"
 RESOURCE_GROUP="$RESOURCE_GROUP"
 ENVIRONMENT="$ENVIRONMENT"
+PROJECT_NAME="$PROJECT_NAME"
 AZURE_SUBSCRIPTION_ID="$AZURE_SUBSCRIPTION_ID"
 
 # Azure Container Registry
@@ -242,8 +245,8 @@ ACR_NAME="$ACR_NAME"
 ACR_LOGIN_SERVER="$ACR_LOGIN_SERVER"
 
 # Custom Provider Configuration
-CUSTOM_PROVIDER_NAME="$CUSTOM_PROVIDER_NAME"
-CONTAINER_IMAGE="$CONTAINER_IMAGE"
+CUSTOM_PROVIDER_NAME="$CUSTOM_PROVIDER_NAME" ## Default: cyberark-custom-provider
+CONTAINER_IMAGE_NAME="$CONTAINER_IMAGE_NAME" ## Default: cyberark-custom-provider
 CONTAINER_APPS_ENVIRONMENT="\${ENVIRONMENT}-env"
 
 # CyberArk Configuration

@@ -7,14 +7,14 @@ set -e # Exit on any error
 
 source color-lib.sh
 
-# Load configuration from .env file
-if [[ -f ".env" ]]; then
-    source .env
-    info "Loaded configuration from .env file"
-else
+if ! [[ -f ".env" ]]; then
     error ".env file not found. Please create one with the required configuration."
     exit 1
 fi
+set -a
+source .env
+set +a
+info "Loaded configuration from .env file"
 
 # Validate required environment variables
 if [[ -z "$LOCATION" || -z "$RESOURCE_GROUP" || -z "$ACR_NAME" ]]; then
@@ -140,8 +140,8 @@ while [[ $# -gt 0 ]]; do
         echo ""
         echo "Options:"
         echo "  --location LOCATION         Azure region (default: eastus)"
-        echo "  --resource-group RG_NAME    Resource group name (default: pavel5-rg)"
-        echo "  --acr-name ACR_NAME         ACR name (default: pavel5acr)"
+        echo "  --resource-group RG_NAME    Resource group name (default: your-resource-group)"
+        echo "  --acr-name ACR_NAME         ACR name (default: youracr)"
         echo "  -h, --help                  Show this help message"
         exit 0
         ;;

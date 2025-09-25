@@ -4,17 +4,22 @@
 # This script rebuilds the Go application, Docker container, and runs it locally
 
 set -e # Exit on any error
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_DIR="$SCRIPT_DIR"
+
+source "$SCRIPT_DIR/color-lib.sh"
+if ! [[ -f "$SCRIPT_DIR/.env" ]]; then
+    error ".env file not found at $SCRIPT_DIR/.env, stopping."
+    error "try running env-setup.sh to create .env"
+    exit 1
+fi
+source "$SCRIPT_DIR/.env"
 
 # Configuration
-CONTAINER_NAME="cyberark-local-test" # container name for running in docker
-IMAGE_NAME="cyberark-custom-provider-local" # docker image name w/o tag
+CONTAINER_NAME="cyberark-local-test"                           # local docker container name
+IMAGE_NAME="${CONTAINER_IMAGE_NAME:-cyberark-custom-provider}" # docker image name
 PORT="8080"
-PROJECT_DIR="/home/azureuser/work/Bicep/azure-custom-resource-providers"
 CUSTOM_PROVIDER_DIR="$PROJECT_DIR/custom-provider"
-
-# Source color library
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/color-lib.sh"
 
 # Check if Docker is running
 check_docker() {
@@ -71,31 +76,9 @@ build_docker_image() {
     success "Docker image built successfully"
 }
 
-# Load environment variables from .env file
-load_env_vars() {
-    local env_file="$PROJECT_DIR/.env"
-
-    if [[ -f "$env_file" ]]; then
-        info "Loading environment variables from .env file..."
-
-        # Source the .env file to get variables
-        set -a # automatically export all variables
-        source "$env_file"
-        set +a # stop automatically exporting
-
-        success "Environment variables loaded"
-    else
-        warning ".env file not found at $env_file"
-        warning "Using default/hardcoded values"
-    fi
-}
-
 # Run new container
 run_container() {
     info "Running new container: $CONTAINER_NAME"
-
-    # Load environment variables
-    load_env_vars
 
     docker run -d \
         --name $CONTAINER_NAME \

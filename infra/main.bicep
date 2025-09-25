@@ -3,11 +3,17 @@ targetScope = 'resourceGroup'
 @description('The location for all resources')
 param location string = resourceGroup().location
 
+@description('The name of the custom provider')
+param customProviderName string
+
 @description('Environment name (dev, staging, prod)')
 param environment string = 'dev'
 
 @description('The name of the project')
 param projectName string = 'cyberarkcp'
+
+@description('The custom provider app name')
+param customProviderAppName string
 
 @description('The name of the Azure Container Registry')
 param acrName string
@@ -22,6 +28,10 @@ param containerImage string = 'cyberark-custom-provider:latest'
 @secure()
 param cyberarkIdTenantUrl string
 
+@description('CyberArk Privilege Cloud URL')
+@secure()
+param cyberarkPCloudUrl string
+
 @description('CyberArk PAM User')
 @secure()
 param cyberarkPamUser string
@@ -29,10 +39,6 @@ param cyberarkPamUser string
 @description('CyberArk PAM Password')
 @secure()
 param cyberarkPamPassword string
-
-@description('CyberArk Privilege Cloud URL')
-@secure()
-param cyberarkPCloudUrl string
 
 // Generate unique names using resource token
 var resourceToken = toLower(take(uniqueString(subscription().id, resourceGroup().id, location), 8))
@@ -96,7 +102,7 @@ resource containerAppsEnvironment 'Microsoft.App/managedEnvironments@2023-05-01'
 
 // Create Container App for Custom Provider
 resource customProviderApp 'Microsoft.App/containerApps@2023-05-01' = {
-  name: '${projectName}-custom-provider-${resourceToken}'
+  name: customProviderAppName
   location: location
   tags: tags
   identity: {
@@ -226,20 +232,13 @@ resource customProviderApp 'Microsoft.App/containerApps@2023-05-01' = {
 
 // Create Azure Custom Provider
 resource customProvider 'Microsoft.CustomProviders/resourceProviders@2018-09-01-preview' = {
-  name: '${projectName}-custom-provider-${resourceToken}'
+  name: customProviderName
   location: location
   tags: tags
   properties: {
     resourceTypes: [
       {
-        name: 'cyberarkSafes'
-        routingType: 'Proxy'
-        endpoint: 'https://${customProviderApp.properties.configuration.ingress.fqdn}'
-      }
-    ]
-    actions: [
-      {
-        name: 'createSafe'
+        name: 'safes'
         routingType: 'Proxy'
         endpoint: 'https://${customProviderApp.properties.configuration.ingress.fqdn}'
       }

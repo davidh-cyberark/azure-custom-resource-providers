@@ -15,6 +15,7 @@ set -e
 # Configuration
 ENV_FILE=".env"
 VERBOSE=false
+REFRESH_PROVIDER_NAME=false
 ERRORS=0
 WARNINGS=0
 
@@ -25,10 +26,19 @@ while [[ $# -gt 0 ]]; do
         VERBOSE=true
         shift
         ;;
+    --refresh-provider-name)
+        REFRESH_PROVIDER_NAME=true
+        shift
+        ;;
     -h | --help)
-        echo "Usage: $0 [--verbose]"
+        echo "Usage: $0 [--verbose] [--refresh-provider-name]"
         echo ""
         echo "This script validates your environment configuration and connectivity."
+        echo ""
+        echo "Options:"
+        echo "  --verbose                 Show detailed validation information"
+        echo "  --refresh-provider-name   Update CUSTOM_PROVIDER_NAME from Azure before validation"
+        echo "  -h, --help               Show this help message"
         echo ""
         echo "Options:"
         echo "  --verbose           Show detailed output"
@@ -306,6 +316,26 @@ main() {
     set +a # stop automatically exporting
 
     success "Environment file loaded"
+
+    # Refresh custom provider name if requested
+    if [ "$REFRESH_PROVIDER_NAME" = true ]; then
+        echo
+        info "🔄 Refreshing CUSTOM_PROVIDER_NAME from Azure..."
+
+        if [[ -f "./get-custom-provider-name.sh" ]]; then
+            if ./get-custom-provider-name.sh; then
+                # Reload environment variables after update
+                source "$ENV_FILE"
+                success "Custom provider name refreshed from Azure"
+            else
+                warning "Failed to refresh custom provider name from Azure"
+                warning "Continuing with existing value in .env file"
+            fi
+        else
+            warning "get-custom-provider-name.sh not found. Cannot refresh provider name."
+            warning "Continuing with existing value in .env file"
+        fi
+    fi
 
     if [ "$VERBOSE" = true ]; then
         echo
