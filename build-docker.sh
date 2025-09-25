@@ -5,26 +5,21 @@
 
 set -e # Exit on any error
 
+set -a
 source color-lib.sh
 source .env
 
 # Configuration
-IMAGE_NAME="cyberark-custom-provider" # Default fallback
-
-# Extract image name from CONTAINER_IMAGE environment variable (remove tag part)
-if [[ -n "$CONTAINER_IMAGE" ]]; then
-    IMAGE_NAME="${CONTAINER_IMAGE%%:*}" # Remove everything after and including the first ":"
-fi
+IMAGE_NAME="${CONTAINER_IMAGE_NAME:-cyberark-custom-provider}"
 DOCKERFILE_PATH="./custom-provider"
 BUILD_CONTEXT="./custom-provider"
 PUSH_TO_ACR=false
 
-# Get version from VERSION file
 if [[ -f "${BUILD_CONTEXT}/VERSION" ]]; then
-    IMAGE_TAG="v$(cat ${BUILD_CONTEXT}/VERSION)"
-else
-    IMAGE_TAG="latest"
+    BUILD_VERSION="v$(cat ${BUILD_CONTEXT}/VERSION)"
 fi
+IMAGE_TAG="${BUILD_VERSION:-latest}"
+set +a
 
 # Function to check if Docker is running
 check_docker() {
@@ -44,19 +39,13 @@ build_image() {
     info "Build context: ${BUILD_CONTEXT}"
     info "Dockerfile path: ${DOCKERFILE_PATH}/Dockerfile"
 
-    # Build the Go application first
-    info "Building Go application..."
-    cd "${BUILD_CONTEXT}"
-    make clean && make build
-    cd - >/dev/null
-
     if docker build -t "${full_image_name}" -f "${DOCKERFILE_PATH}/Dockerfile" "${BUILD_CONTEXT}"; then
         success "Docker image built successfully: ${full_image_name}"
         return 0
-    else
-        error "Failed to build Docker image"
-        return 1
     fi
+
+    error "Failed to build Docker image"
+    return 1
 }
 
 # Function to push image to ACR
@@ -85,10 +74,10 @@ push_to_acr() {
     if docker push "${acr_image}"; then
         success "Image pushed successfully to ACR: ${acr_image}"
         return 0
-    else
-        error "Failed to push image to ACR"
-        return 1
     fi
+
+    error "Failed to push image to ACR"
+    return 1
 }
 
 # Function to show image info
@@ -105,7 +94,14 @@ test_image() {
     local test_name="${IMAGE_NAME}-test"
 
     info "Testing if the image can start..."
-    if docker run --rm -d --name "${test_name}" -p 8080:8080 "${full_image_name}" >/dev/null; then
+    info "Image name: ${full_image_name}"
+
+    if docker run --rm -d --name "${test_name}" -p 8080:8080 \
+        -e IDTENANTURL="$CYBERARK_ID_TENANT_URL" \
+        -e PAMUSER="$CYBERARK_PAM_USER" \
+        -e PAMPASS="$CYBERARK_PAM_PASSWORD" \
+        -e PCLOUDURL="$CYBERARK_PCLOUD_URL" \
+        "${full_image_name}" >/dev/null; then
         sleep 2
         if docker ps | grep -q "${test_name}"; then
             success "Image starts successfully"
@@ -147,41 +143,40 @@ main() {
     fi
 
     # Build the image
-    if build_image "${IMAGE_NAME}" "${IMAGE_TAG}"; then
-        show_image_info "${IMAGE_NAME}"
-
-        # Push to ACR if requested
-        if [[ "$PUSH_TO_ACR" == "true" ]]; then
-            if push_to_acr "${local_image}" "${acr_image}"; then
-                success "Image successfully built and pushed to ACR!"
-                info "ACR Image: ${acr_image}"
-            else
-                error "Build succeeded but push to ACR failed!"
-                exit 1
-            fi
-        else
-            # Ask if user wants to test the image (only for local builds)
-            echo
-            read -p "Do you want to test if the image can start? (y/N): " -n 1 -r
-            echo
-            if [[ $REPLY =~ ^[Yy]$ ]]; then
-                test_image "${local_image}"
-            fi
-
-            success "Build process completed successfully!"
-            echo
-            info "You can now run the container with:"
-            echo "  docker run -d -p 8080:8080 ${local_image}"
-
-            if [[ -n "$ACR_LOGIN_SERVER" ]]; then
-                echo
-                info "To push to ACR later, run:"
-                echo "  $0 --push"
-            fi
-        fi
-    else
+    if ! build_image "${IMAGE_NAME}" "${IMAGE_TAG}"; then
         error "Build process failed!"
-        exit 1
+        return 1
+    fi
+
+    show_image_info "${IMAGE_NAME}"
+
+    # Push to ACR if requested
+    if [[ "$PUSH_TO_ACR" == "true" ]]; then
+        if ! push_to_acr "${local_image}" "${acr_image}"; then
+            error "Build succeeded but push to ACR failed!"
+            return 1
+        fi
+        success "Image successfully built and pushed to ACR!"
+        info "ACR Image: ${acr_image}"
+    fi
+
+    # Ask if user wants to test the image (only for local builds)
+    echo
+    read -p "Do you want to test if the image can start? (y/N): " -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        test_image "${local_image}"
+    fi
+
+    success "Build process completed successfully!"
+    echo
+    info "You can now run the container with:"
+    echo "  docker run -d -p 8080:8080 ${local_image}"
+
+    if [[ -n "$ACR_LOGIN_SERVER" ]]; then
+        echo
+        info "To push to ACR later, run:"
+        echo "  $0 --push"
     fi
 }
 

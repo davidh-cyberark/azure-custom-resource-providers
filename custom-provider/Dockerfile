@@ -15,10 +15,7 @@ RUN go mod download
 COPY . .
 
 # Build the application
-RUN make clean
-RUN make vardump
-RUN make build
-#RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main .
+RUN make clean && make vardump && make build
 
 # Final stage
 FROM alpine:latest

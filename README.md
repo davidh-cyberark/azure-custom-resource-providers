@@ -35,21 +35,14 @@ curl http://localhost:8080/health
 ### 3. Quick Deploy to Azure
 
 ```bash
-# Source environment variables
-source .env
-
 # Setup Azure infrastructure (resource group and ACR)
 ./setup-azure-infrastructure.sh
 
-# Build and push the application BEFORE infrastructure deployment
-cd custom-provider/
-make clean && make build
-
 # Build Docker image and push to ACR using the build script
-cd ..
-./build-docker.sh --push
+./build-docker.sh         # Build the image
+./build-docker.sh --push  # Push the image to ACR
 
-# Deploy infrastructure (after image is pushed)
+# Deploy infrastructure
 ./deploy-infrastructure.sh
 ```
 
@@ -63,10 +56,11 @@ source .env
 ./validate-environment.sh
 
 # Use the provided Bicep template
+NEW_SAFE_NAME="my-test-safe"
 az deployment group create \
   --resource-group $RESOURCE_GROUP \
   --template-file templates/create-cyberark-safe.bicep \
-  --parameters safeName="my-first-safe" \
+  --parameters safeName="$NEW_SAFE_NAME" \
                customProviderName="$CUSTOM_PROVIDER_NAME"
 ```
 
@@ -80,6 +74,9 @@ This project includes several helper scripts to streamline your workflow:
 - **`./deploy-infrastructure.sh`** - Deploy Azure infrastructure using Bicep
 - **`./validate-environment.sh`** - Validates configuration and connectivity  
 - **`./rebuild-and-run.sh`** - Local development and testing
+- **`./get-latest-image.sh`** - Manage container image versions from ACR
+- **`./get-custom-provider-name.sh`** - Discover and update dynamic custom provider names
+- **`./update-resources.sh`** - Unified management for both images and provider names
 
 Run `./validate-environment.sh --verbose` for detailed environment diagnostics.
 
@@ -113,6 +110,8 @@ The Custom Provider enables you to:
 
 Create a `.env` file with the following configuration:
 
+TODO: Update this section with .env.template vars
+
 ```bash
 # Azure Configuration
 LOCATION="eastus"
@@ -120,8 +119,8 @@ RESOURCE_GROUP="your-rg-name"
 ENVIRONMENT="dev"
 
 # Custom Provider Configuration
-CONTAINER_IMAGE="your-custom-provider:latest"
-CUSTOM_PROVIDER_NAME="your-custom-provider"
+CONTAINER_IMAGE="your-custom-provider:latest"  # Managed by get-latest-image.sh
+CUSTOM_PROVIDER_NAME="your-custom-provider"    # Managed by get-custom-provider-name.sh
 
 # Azure Container Registry
 ACR_NAME="youracr"
@@ -135,6 +134,85 @@ CYBERARK_PCLOUD_URL="https://your-tenant.privilegecloud.cyberark.cloud"
 ```
 
 ## Build and Deployment
+
+### Container Image Management
+
+This project includes an automated system for managing container images in Azure Container Registry (ACR). The `get-latest-image.sh` script can automatically retrieve and update container image references.
+
+#### Quick Start - Image Management
+
+```bash
+# Update .env with latest image from ACR
+./get-latest-image.sh
+
+# Update to specific version
+./get-latest-image.sh --tag v1.2.3
+
+# List all available images
+./get-latest-image.sh --list
+
+# Preview changes without updating
+./get-latest-image.sh --dry-run
+```
+
+### Custom Provider Name Management
+
+Azure dynamically generates custom provider names during deployment, making them difficult to predict. The project includes automated tools to discover and manage these dynamic names.
+
+#### Quick Start - Custom Provider Management
+
+```bash
+# Update .env with current custom provider name from Azure
+./get-custom-provider-name.sh
+
+# List all custom providers in your resource group
+./get-custom-provider-name.sh --list
+
+# Select provider matching a pattern
+./get-custom-provider-name.sh --pattern "*prod*"
+
+# Preview changes without updating
+./get-custom-provider-name.sh --dry-run
+```
+
+### Unified Resource Management
+
+Use the helper script to manage both image and provider names:
+
+```bash
+# Update both image and custom provider name
+./update-resources.sh both
+
+# Update only the image to latest version
+./update-resources.sh image
+
+# Update only the custom provider name
+./update-resources.sh provider
+
+# Preview all changes
+./update-resources.sh both --dry-run
+```
+
+#### Enhanced Build and Deploy Workflow
+
+```bash
+# Build, push to ACR, and update .env in one command
+./build-docker.sh --push-and-update
+
+# Deploy with latest image from ACR
+./deploy-infrastructure.sh --update-image
+
+# Deploy with image update and capture provider name
+./deploy-infrastructure.sh --update-image --update-provider-name
+
+# Deploy specific version with provider name capture
+./deploy-infrastructure.sh --image-tag v1.2.3 --update-provider-name
+
+# Validate with refreshed provider name
+./validate-environment.sh --refresh-provider-name
+```
+
+For detailed documentation on dynamic resource management features, see [Dynamic Image Management Guide](docs/Dynamic-Image-Management.md).
 
 ### 1. Local Development
 
@@ -184,15 +262,12 @@ source .env
 # Navigate to custom provider directory
 cd custom-provider/
 
-# Update version (optional)
-echo "1.0.0" > VERSION
-
 # Build the application
 make clean && make build
 
 # Build and push Docker image to ACR
 cd ..
-./build-docker.sh --push
+./build-docker.sh --push-and-update
 cd custom-provider/
 ```
 
@@ -336,8 +411,17 @@ curl -X POST \
 # Source environment variables
 source .env
 
-# Check application health
-curl https://your-custom-provider-fqdn/health
+# Store the container app FQDN in a variable
+CONTAINER_APP_FQDN=$(az containerapp show \
+  --name $CUSTOM_PROVIDER_NAME \
+  --resource-group $RESOURCE_GROUP \
+  --query "properties.configuration.ingress.fqdn" \
+  --output tsv)
+
+echo "Container App FQDN: $CONTAINER_APP_FQDN"
+
+# Test the health endpoint
+curl "https://$CONTAINER_APP_FQDN/health"
 
 # Check Container App status
 az containerapp show \
@@ -399,18 +483,14 @@ curl http://localhost:8080/health
 # Source environment variables
 source .env
 
-# Build and push new version
+# Build and push new version with automatic .env update
 cd custom-provider/
 echo "1.0.1" > VERSION
 cd ..
-./build-docker.sh --push
+./build-docker.sh --push-and-update
 
-# Update Container App with new image
-VERSION=$(cat custom-provider/VERSION)
-az containerapp update \
-  --name $CUSTOM_PROVIDER_NAME \
-  --resource-group $RESOURCE_GROUP \
-  --image $ACR_LOGIN_SERVER/cyberark-custom-provider:v$VERSION
+# Deploy with resource name management
+./deploy-infrastructure.sh --update-provider-name
 ```
 
 ### 4. Verify Deployment
@@ -418,6 +498,23 @@ az containerapp update \
 ```bash
 # Check health and version
 curl https://your-custom-provider-fqdn/health
+
+# Validate environment with refreshed values
+./validate-environment.sh --refresh-provider-name
+```
+
+### Alternative Workflow with Unified Helper
+
+```bash
+# Update all resources and deploy
+./update-resources.sh both
+./deploy-infrastructure.sh --update-provider-name
+
+# Or use a complete workflow
+./update-resources.sh both --dry-run  # Preview changes
+./update-resources.sh both           # Apply changes
+./deploy-infrastructure.sh --update-provider-name
+./validate-environment.sh --refresh-provider-name
 ```
 
 ## Security Considerations
@@ -430,6 +527,42 @@ curl https://your-custom-provider-fqdn/health
 
 ## Troubleshooting
 
+### Quick Diagnostics
+
+When experiencing deployment issues, follow this diagnostic sequence:
+
+```bash
+# 1. Verify container app is running
+az containerapp list --resource-group $RESOURCE_GROUP --query "[].{Name:name, Status:properties.runningStatus, FQDN:properties.configuration.ingress.fqdn}" -o table
+
+# 2. Test the health endpoint (not root path)
+CONTAINER_APP_FQDN=$(az containerapp show --name $CUSTOM_PROVIDER_NAME --resource-group $RESOURCE_GROUP --query "properties.configuration.ingress.fqdn" -o tsv)
+curl -v "https://$CONTAINER_APP_FQDN/health"
+
+# 3. Check custom provider configuration
+az resource show --resource-group $RESOURCE_GROUP --resource-type "Microsoft.CustomProviders/resourceProviders" --name $CUSTOM_PROVIDER_NAME --query "properties" -o json
+
+# 4. Update custom provider name if mismatched
+./get-custom-provider-name.sh
+source .env
+
+# 5. Test direct API call to custom provider (corrected URL)
+TEST_SAFE_NAME="test-safe"
+CONTAINER_APP_FQDN=$(az containerapp show --name $CUSTOM_PROVIDER_NAME --resource-group $RESOURCE_GROUP --query "properties.configuration.ingress.fqdn" -o tsv)
+curl -v -X PUT \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $(az account get-access-token --query accessToken -o tsv)" \
+  -d '{
+    "properties": {
+      "safeName": "'$TEST_SAFE_NAME'",
+      "description": "Test safe for troubleshooting"
+    }
+  }' \
+  "https://$CONTAINER_APP_FQDN/subscriptions/$(az account show --query id -o tsv)/resourcegroups/$RESOURCE_GROUP/providers/Microsoft.CustomProviders/resourceProviders/$CUSTOM_PROVIDER_NAME/cyberarkSafes/$TEST_SAFE_NAME"
+```
+
+**Important Note**: The root path `/` will return `{"error":{"code":"EndpointNotFound","message":"Endpoint / not found"}}`. This is **expected behavior** - the custom provider only responds to specific API endpoints like `/health` and the custom resource paths.
+
 ### Common Issues
 
 1. **Container App not starting**
@@ -437,12 +570,22 @@ curl https://your-custom-provider-fqdn/health
    - Verify CyberArk credentials are correctly configured
    - Ensure image is properly pushed to ACR
 
-2. **Safe creation fails**
+2. **Safe creation fails with "EndpointNotFound"**
+   - **Root cause**: Testing wrong endpoint (like `/`) instead of `/health`
+   - **Solution**: Use `/health` endpoint to verify app is running
+   - **Expected**: Root path `/` should return "Endpoint / not found" error
+
+3. **Custom Provider name mismatch**
+   - **Root cause**: `$CUSTOM_PROVIDER_NAME` doesn't match actual deployed resource
+   - **Solution**: Run `./get-custom-provider-name.sh` to sync the name
+   - **Verify**: Check that bicep parameter matches Azure resource name
+
+4. **Safe creation fails with CyberArk errors**
    - Verify CyberArk credentials have appropriate permissions
    - Check network connectivity to CyberArk endpoints
    - Review Container App logs for detailed error messages
 
-3. **Custom Provider not responding**
+5. **Custom Provider not responding to requests**
    - Check Container App health status
    - Verify ingress configuration
    - Test health endpoint directly
