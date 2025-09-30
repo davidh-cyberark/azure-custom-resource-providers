@@ -50,6 +50,8 @@ func handleRootRequest(w http.ResponseWriter, r *http.Request) {
 		switch cpRequest.Action {
 		case "safes":
 			handleSafe(w, r, cpRequest)
+		case "accounts":
+			handleAccount(w, r, cpRequest)
 		default:
 			sendJSONError(w, http.StatusMethodNotAllowed, "MethodNotAllowed", fmt.Sprintf("Action %s is not supported", cpRequest.Action))
 		}

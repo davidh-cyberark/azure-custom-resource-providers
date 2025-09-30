@@ -1,0 +1,20 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "customProviderName": {
+      "value": "cyberarkcp"
+    },
+    "account": {
+      "value": {
+        "safeName": "my-safe",
+        "platformId": "UnixSSH",
+        "name": "my-account",
+        "userName": "my-user",
+        "secretType": "key",
+        "secret": "my-password",
+        "address": "10.0.0.1"
+      }
+    }
+  }
+}

@@ -142,7 +142,12 @@ func getEnvOrDefault(key, defaultValue string) string {
 // Parse the Azure Custom Provider header, "X-Ms-Customproviders-Requestpath" and return the struct, CustomProviderRequestPath
 // Example:
 //
-//	X-Ms-Customproviders-Requestpath:/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/testing-rg/providers/Microsoft.CustomProviders/resourceProviders/testingcp/cyberarkSafes/test-safe-v1
+//		X-Ms-Customproviders-Requestpath:
+//	    segments[0,1] /subscriptions/12345678-1234-1234-1234-123456789012
+//	    segments[2,3] /resourceGroups/testing-rg
+//	    segments[4,5] /providers/Microsoft.CustomProviders
+//	    segments[6,7] /resourceProviders/testingcp
+//	    segments[8,9] /safes/test-safe-v1
 func ParseCustomProviderHeaderRequestPath(r *http.Request) (CustomProviderRequestPath, error) {
 	req := CustomProviderRequestPath{}
 	requestPath := r.Header.Get("X-Ms-Customproviders-Requestpath")
