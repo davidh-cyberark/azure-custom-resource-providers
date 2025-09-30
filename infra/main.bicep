@@ -242,6 +242,11 @@ resource customProvider 'Microsoft.CustomProviders/resourceProviders@2018-09-01-
         routingType: 'Proxy'
         endpoint: 'https://${customProviderApp.properties.configuration.ingress.fqdn}'
       }
+      {
+        name: 'accounts'
+        routingType: 'Proxy'
+        endpoint: 'https://${customProviderApp.properties.configuration.ingress.fqdn}'
+      }
     ]
   }
 }

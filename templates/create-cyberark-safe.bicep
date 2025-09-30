@@ -20,6 +20,7 @@ resource customProvider 'Microsoft.CustomProviders/resourceProviders@2018-09-01-
 }
 
 // Create a CyberArk safe using the custom provider
+#disable-next-line BCP081
 resource cyberarkSafe 'Microsoft.CustomProviders/resourceProviders/safes@2018-09-01-preview' = {
   parent: customProvider
   name: safeName
