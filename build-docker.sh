@@ -160,12 +160,14 @@ main() {
         info "ACR Image: ${acr_image}"
     fi
 
-    # Ask if user wants to test the image (only for local builds)
-    echo
-    read -p "Do you want to test if the image can start? (y/N): " -n 1 -r
-    echo
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
-        test_image "${local_image}"
+    if [ "$SKIP_TEST" != "true" ]; then
+        # Ask if user wants to test the image (only for local builds)
+        echo
+        read -p "Do you want to test if the image can start? (y/N): " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            test_image "${local_image}"
+        fi
     fi
 
     success "Build process completed successfully!"

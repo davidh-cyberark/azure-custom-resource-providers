@@ -7,19 +7,23 @@
 #   --update-image          Update CONTAINER_IMAGE from ACR before deployment
 #   --image-tag TAG         Use specific image tag (requires --update-image)
 #   --help                  Show this help message
+#   -y | --yes              Continue without asking, assume Yes
 
-set -e
+set -ea
 
-set -a
 source color-lib.sh
 source .env
 
 MAIN_BICEP="./main.bicep"
 DEBUG=""
-set +a
+CONTINUE=false
 
 while [[ $# -gt 0 ]]; do
     case $1 in
+    -y | --yes)
+        CONTINUE=true
+        shift
+        ;;
     --debug)
         DEBUG="--debug"
         shift
@@ -49,7 +53,7 @@ required_vars=(
     "RESOURCE_GROUP"
     "ENVIRONMENT"
     "ACR_NAME"
-    "CUSTOM_PROVIDER_NAME"
+    "CUSTOM_PROVIDER_APP_NAME"
     "CONTAINER_IMAGE_NAME"
     "CYBERARK_ID_TENANT_URL"
     "CYBERARK_PAM_USER"
@@ -104,19 +108,21 @@ echo "  LOCATION: $LOCATION"
 echo "  PROJECT_NAME: $PROJECT_NAME"
 echo "  ACR_NAME: $ACR_NAME"
 echo "  CONTAINER_IMAGE: $CONTAINER_IMAGE"
-echo "  CUSTOM_PROVIDER_NAME: $CUSTOM_PROVIDER_NAME  ## (also used for customProviderAppName)"
+echo "  CUSTOM_PROVIDER_APP_NAME: $CUSTOM_PROVIDER_APP_NAME  ## (also used for customProviderAppName)"
 echo "  CYBERARK_ID_TENANT_URL: $CYBERARK_ID_TENANT_URL"
 echo "  CYBERARK_PAM_USER: $CYBERARK_PAM_USER"
 echo "  CYBERARK_PAM_PASSWORD: $CYBERARK_PAM_PASSWORD"
 echo "  CYBERARK_PCLOUD_URL: $CYBERARK_PCLOUD_URL"
 echo ""
 
-echo ""
-read -p "Do you want to continue? (y/N): " -n 1 -r
-echo ""
-if ! [[ $REPLY =~ ^[Yy]$ ]]; then
-    echo "...user does not want to continue, exiting."
-    exit 0
+if [ "$CONTINUE" != "true" ]; then
+    echo ""
+    read -p "Do you want to continue? (y/N): " -n 1 -r
+    echo ""
+    if ! [[ $REPLY =~ ^[Yy]$ ]]; then
+        echo "...user does not want to continue, exiting."
+        exit 0
+    fi
 fi
 
 az deployment group create $DEBUG \
@@ -128,8 +134,7 @@ az deployment group create $DEBUG \
     acrName="$ACR_NAME" \
     acrResourceGroup="$RESOURCE_GROUP" \
     containerImage="$CONTAINER_IMAGE" \
-    customProviderName="$CUSTOM_PROVIDER_NAME" \
-    customProviderAppName="$CUSTOM_PROVIDER_NAME" \
+    customProviderAppName="$CUSTOM_PROVIDER_APP_NAME" \
     cyberarkIdTenantUrl="$CYBERARK_ID_TENANT_URL" \
     cyberarkPamUser="$CYBERARK_PAM_USER" \
     cyberarkPamPassword="$CYBERARK_PAM_PASSWORD" \

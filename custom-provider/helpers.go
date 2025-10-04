@@ -14,12 +14,24 @@ import (
 )
 
 type CustomProviderRequestPath struct {
-	Subscriptions     string
-	ResourceGroups    string
-	Providers         string
-	ResourceProviders string
-	Action            string
-	ResourceName      string
+	Subscriptions        string
+	ResourceGroups       string
+	Providers            string
+	ResourceProviders    string
+	ResourceTypeName     string
+	ResourceInstanceName string
+	FullPath             string
+}
+
+// ErrorDetails contains error information
+type ErrorDetails struct {
+	Code    string `json:"code"`
+	Message string `json:"message"`
+}
+
+// ErrorResponse represents an error response in JSON format
+type ErrorResponse struct {
+	Error ErrorDetails `json:"error"`
 }
 
 // sendJSONError sends a JSON-formatted error response
@@ -117,7 +129,6 @@ func createPAMClient() (*pam.Client, error) {
 
 	log.Printf("DEBUG: Environment variables loaded - ID Tenant URL: %s, PCloud URL: %s, User: %s",
 		idTenantURL, privCloudURL, pamUser)
-	log.Printf("Initializing PAM client with ID Tenant URL: %s", idTenantURL)
 
 	config := pam.NewConfig(idTenantURL, privCloudURL, pamUser, pamPass)
 	client := pam.NewClient(privCloudURL, config)
@@ -139,34 +150,40 @@ func getEnvOrDefault(key, defaultValue string) string {
 	return defaultValue
 }
 
+func LogRequestDebug(from string, r *http.Request) {
+	log.Printf("DEBUG: (%s) Request - Method: %s, URL: %s, RemoteAddr: %s, Headers: %v", from, r.Method, r.URL.Path, r.RemoteAddr, r.Header)
+}
+
 // Parse the Azure Custom Provider header, "X-Ms-Customproviders-Requestpath" and return the struct, CustomProviderRequestPath
 // Example:
 //
-//		X-Ms-Customproviders-Requestpath:
-//	    segments[0,1] /subscriptions/12345678-1234-1234-1234-123456789012
-//	    segments[2,3] /resourceGroups/testing-rg
-//	    segments[4,5] /providers/Microsoft.CustomProviders
-//	    segments[6,7] /resourceProviders/testingcp
-//	    segments[8,9] /safes/test-safe-v1
+//			X-Ms-Customproviders-Requestpath:
+//		    segments[0,1] /subscriptions/{subscriptionId}
+//		    segments[2,3] /resourceGroups/{resourceGroupName}
+//		    segments[4,5] /providers/Microsoft.CustomProviders
+//		    segments[6,7] /resourceProviders/{resourceProviderName}
+//		    segments[8]   /{resources[].properties.resourceTypes.name}         // look at infra/main.bicep
+//	        segments[9]   /{literal name of the resource, aka resource name}
+//
+// REF: https://learn.microsoft.com/en-us/azure/azure-resource-manager/troubleshooting/error-invalid-name-segments?tabs=bicep
 func ParseCustomProviderHeaderRequestPath(r *http.Request) (CustomProviderRequestPath, error) {
 	req := CustomProviderRequestPath{}
-	requestPath := r.Header.Get("X-Ms-Customproviders-Requestpath")
-	if requestPath == "" {
+	req.FullPath = r.Header.Get("X-Ms-Customproviders-Requestpath")
+	if req.FullPath == "" {
 		return req, fmt.Errorf("empty request path")
 	}
 
-	segments := strings.Split(strings.Trim(requestPath, "/"), "/")
-	if len(segments) < 10 {
-		log.Printf("Invalid request path, expecting 10 segments, %s", requestPath)
-		return req, fmt.Errorf("invalid request path, expecting 10 segments, %s", requestPath)
+	segments := strings.Split(strings.Trim(req.FullPath, "/"), "/")
+	if len(segments) < 9 {
+		return req, fmt.Errorf("invalid request path, expecting 9 or 10 segments, %s", req.FullPath)
 	}
 
 	req.Subscriptions = segments[1]
 	req.ResourceGroups = segments[3]
 	req.Providers = segments[5]
 	req.ResourceProviders = segments[7]
-	req.Action = segments[8]
-	req.ResourceName = segments[9]
+	req.ResourceTypeName = segments[8]
+	req.ResourceInstanceName = segments[9]
 
 	return req, nil
 }
@@ -177,6 +194,10 @@ func HasCustomProviderRequestPath(r *http.Request) bool {
 }
 
 func (r *CustomProviderRequestPath) ID() string {
-	return fmt.Sprintf("/subscriptions/%s/resourceGroups/%s/providers/%s/resourceProviders/%s/%s/%s",
-		r.Subscriptions, r.ResourceGroups, r.Providers, r.ResourceProviders, r.Action, r.ResourceName)
+	id := fmt.Sprintf("/subscriptions/%s/resourceGroups/%s/providers/%s/resourceProviders/%s/%s",
+		r.Subscriptions, r.ResourceGroups, r.Providers, r.ResourceProviders, r.ResourceTypeName)
+	if len(r.ResourceInstanceName) > 0 {
+		id = fmt.Sprintf("%s/%s", id, r.ResourceInstanceName)
+	}
+	return id
 }

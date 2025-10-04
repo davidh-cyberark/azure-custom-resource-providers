@@ -4,7 +4,7 @@ targetScope = 'resourceGroup'
 param location string = resourceGroup().location
 
 @description('The name of the custom provider')
-param customProviderName string
+param customProviderName string = 'CyberArkProvider'
 
 @description('The name of the safe to create')
 @minLength(3)

@@ -4,7 +4,7 @@ targetScope = 'resourceGroup'
 param location string = resourceGroup().location
 
 @description('The name of the custom provider')
-param customProviderName string
+param customProviderName string = 'CyberArkProvider'
 
 @description('Account object with all CyberArk properties')
 param account object
@@ -22,7 +22,10 @@ resource customProvider 'Microsoft.CustomProviders/resourceProviders@2018-09-01-
 #disable-next-line BCP081
 resource cyberarkAccount 'Microsoft.CustomProviders/resourceProviders/accounts@2018-09-01-preview' = {
   parent: customProvider
-  name: '${account.safeName}-${account.name}'
+  // '.' is a character that cannot be used in a safename; 
+  // note that '.' IS VALID in an account name
+  name: '${account.safeName}.${account.name}'
+
   location: location
   properties: account
 }

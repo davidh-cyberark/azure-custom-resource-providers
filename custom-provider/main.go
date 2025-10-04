@@ -11,17 +11,6 @@ import (
 var Version = "dev"
 var BuildDate = "dev"
 
-// ErrorResponse represents an error response in JSON format
-type ErrorResponse struct {
-	Error ErrorDetails `json:"error"`
-}
-
-// ErrorDetails contains error information
-type ErrorDetails struct {
-	Code    string `json:"code"`
-	Message string `json:"message"`
-}
-
 // CustomProviderResponse represents the response format for Azure Custom Providers
 type CustomProviderResponse struct {
 	ID         string                 `json:"id"`
@@ -32,28 +21,30 @@ type CustomProviderResponse struct {
 
 // handleCatchAll handles requests that don't match any other route
 func handleCatchAll(w http.ResponseWriter, r *http.Request) {
-	log.Printf("ERROR: Unmatched request - Method: %s, URL: %s, RemoteAddr: %s", r.Method, r.URL.Path, r.RemoteAddr)
-	log.Printf("DEBUG: Unmatched request headers: %v", r.Header)
+	LogRequestDebug("CatchAll", r)
 
 	// Return 404 with JSON format as required by Azure Custom Providers
 	sendJSONError(w, http.StatusNotFound, "EndpointNotFound", fmt.Sprintf("Endpoint %s not found", r.URL.Path))
 }
 
 func handleRootRequest(w http.ResponseWriter, r *http.Request) {
+	LogRequestDebug("RootRequest", r)
+
+	// If the custom provider header exists, then we process the custom provider request
 	if HasCustomProviderRequestPath(r) {
 		cpRequest, err := ParseCustomProviderHeaderRequestPath(r)
 		if err != nil {
 			sendJSONError(w, http.StatusBadRequest, "BadRequestPath", fmt.Sprintf("Invalid header, X-Ms-Customproviders-Requestpath: %s", err.Error()))
 			return
 		}
-		log.Printf("DEBUG: Parsed Custom Provider request - Action: %s, ResourceName: %s", cpRequest.Action, cpRequest.ResourceName)
-		switch cpRequest.Action {
+		log.Printf("DEBUG: Parsed Custom Provider request - Action: %s, ResourceName: %s.", cpRequest.ResourceTypeName, cpRequest.ResourceInstanceName)
+		switch cpRequest.ResourceTypeName {
 		case "safes":
 			handleSafe(w, r, cpRequest)
 		case "accounts":
 			handleAccount(w, r, cpRequest)
 		default:
-			sendJSONError(w, http.StatusMethodNotAllowed, "MethodNotAllowed", fmt.Sprintf("Action %s is not supported", cpRequest.Action))
+			sendJSONError(w, http.StatusMethodNotAllowed, "MethodNotAllowed", fmt.Sprintf("Action %s is not supported", cpRequest.ResourceTypeName))
 		}
 		return // Add return to prevent fall-through to regular request handling
 	}
@@ -85,13 +76,13 @@ func main() {
 
 	// Health check endpoint
 	r.HandleFunc("/health", handleHealth).Methods("GET")
-	r.HandleFunc("/healthex", handleHealthEx).Methods("GET")
+	r.HandleFunc("/healthex", handleHealthEx).Methods("GET") // checks pamclient, so, only call this manually
 
 	// Catch-all route for debugging unmatched requests
 	r.PathPrefix("/").HandlerFunc(handleCatchAll)
 
 	port := getEnvOrDefault("PORT", "8080")
-	log.Printf("Starting CyberArk Custom Provider on port %s", port)
+	log.Printf("INFO: Starting CyberArk Custom Provider on port %s", port)
 
 	// Get and log the public IP at startup
 	startupIP := getPublicIP()
@@ -99,7 +90,8 @@ func main() {
 
 	log.Printf("DEBUG: Server routes configured - Endpoints available:")
 	log.Printf("  - GET  /health")
-	log.Printf("  - POST /subscriptions/.../createSafe")
-	log.Printf("  - GET/PUT/DELETE /subscriptions/.../cyberarkSafes/{name}")
+	log.Printf("  - GET  /healthex -- only use this one when troubleshooting")
+	log.Printf("  - GET/PUT/DELETE /subscriptions/.../safes/{name}")
+	log.Printf("  - GET/PUT/DELETE /subscriptions/.../accounts/{name}")
 	log.Fatal(http.ListenAndServe(":"+port, r))
 }

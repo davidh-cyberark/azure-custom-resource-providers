@@ -6,6 +6,8 @@ import (
 )
 
 func handleGetRoot(w http.ResponseWriter, r *http.Request) {
+	LogRequestDebug("GetRoot", r)
+
 	if r.Method == http.MethodGet && r.URL.Path == "/" {
 		// Respond with 200 OK and a minimal JSON payload
 		w.Header().Set("Content-Type", "application/json")
@@ -15,6 +17,5 @@ func handleGetRoot(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	// Optionally handle other methods or paths
-	http.NotFound(w, r)
+	handleCatchAll(w, r)
 }

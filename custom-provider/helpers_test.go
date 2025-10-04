@@ -16,12 +16,12 @@ func TestParseCustomProviderHeaderRequestPath(t *testing.T) {
 			name:        "valid request path",
 			requestPath: "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/testing17-rg/providers/Microsoft.CustomProviders/resourceProviders/testing17cp/cyberarkSafes/test-safe-v6-1758822458",
 			expectedResult: CustomProviderRequestPath{
-				Subscriptions:     "12345678-1234-1234-1234-123456789012",
-				ResourceGroups:    "testing17-rg",
-				Providers:         "Microsoft.CustomProviders",
-				ResourceProviders: "testing17cp",
-				Action:            "cyberarkSafes",
-				ResourceName:      "test-safe-v6-1758822458",
+				Subscriptions:        "12345678-1234-1234-1234-123456789012",
+				ResourceGroups:       "testing17-rg",
+				Providers:            "Microsoft.CustomProviders",
+				ResourceProviders:    "testing17cp",
+				ResourceTypeName:     "cyberarkSafes",
+				ResourceInstanceName: "test-safe-v6-1758822458",
 			},
 			expectError: false,
 		},
@@ -47,12 +47,12 @@ func TestParseCustomProviderHeaderRequestPath(t *testing.T) {
 			name:        "valid request path with trailing slash",
 			requestPath: "/subscriptions/test-subscription/resourceGroups/test-rg/providers/Microsoft.CustomProviders/resourceProviders/test-provider/testAction/testResource/",
 			expectedResult: CustomProviderRequestPath{
-				Subscriptions:     "test-subscription",
-				ResourceGroups:    "test-rg",
-				Providers:         "Microsoft.CustomProviders",
-				ResourceProviders: "test-provider",
-				Action:            "testAction",
-				ResourceName:      "testResource",
+				Subscriptions:        "test-subscription",
+				ResourceGroups:       "test-rg",
+				Providers:            "Microsoft.CustomProviders",
+				ResourceProviders:    "test-provider",
+				ResourceTypeName:     "testAction",
+				ResourceInstanceName: "testResource",
 			},
 			expectError: false,
 		},
@@ -90,11 +90,11 @@ func TestParseCustomProviderHeaderRequestPath(t *testing.T) {
 				if result.ResourceProviders != tt.expectedResult.ResourceProviders {
 					t.Errorf("expected ResourceProviders %s, got %s", tt.expectedResult.ResourceProviders, result.ResourceProviders)
 				}
-				if result.Action != tt.expectedResult.Action {
-					t.Errorf("expected Action %s, got %s", tt.expectedResult.Action, result.Action)
+				if result.ResourceTypeName != tt.expectedResult.ResourceTypeName {
+					t.Errorf("expected ResourceTypeName %s, got %s", tt.expectedResult.ResourceTypeName, result.ResourceTypeName)
 				}
-				if result.ResourceName != tt.expectedResult.ResourceName {
-					t.Errorf("expected ResourceName %s, got %s", tt.expectedResult.ResourceName, result.ResourceName)
+				if result.ResourceInstanceName != tt.expectedResult.ResourceInstanceName {
+					t.Errorf("expected ResourceInstanceName %s, got %s", tt.expectedResult.ResourceInstanceName, result.ResourceInstanceName)
 				}
 			}
 		})
@@ -109,12 +109,12 @@ func TestCustomProviderRequestPath_String(t *testing.T) {
 		{
 			name: "complete path",
 			path: CustomProviderRequestPath{
-				Subscriptions:     "12345678-1234-1234-1234-123456789012",
-				ResourceGroups:    "testing17-rg",
-				Providers:         "Microsoft.CustomProviders",
-				ResourceProviders: "testing17cp",
-				Action:            "cyberarkSafes",
-				ResourceName:      "test-safe-v6-1758822458",
+				Subscriptions:        "12345678-1234-1234-1234-123456789012",
+				ResourceGroups:       "testing17-rg",
+				Providers:            "Microsoft.CustomProviders",
+				ResourceProviders:    "testing17cp",
+				ResourceTypeName:     "cyberarkSafes",
+				ResourceInstanceName: "test-safe-v6-1758822458",
 			},
 			expected: "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/testing17-rg/providers/Microsoft.CustomProviders/resourceProviders/testing17cp/cyberarkSafes/test-safe-v6-1758822458",
 		},
@@ -126,12 +126,12 @@ func TestCustomProviderRequestPath_String(t *testing.T) {
 		{
 			name: "path with special characters in resource name",
 			path: CustomProviderRequestPath{
-				Subscriptions:     "test-sub",
-				ResourceGroups:    "test-rg",
-				Providers:         "Microsoft.CustomProviders",
-				ResourceProviders: "test-provider",
-				Action:            "testAction",
-				ResourceName:      "resource-with-dashes_and_underscores",
+				Subscriptions:        "test-sub",
+				ResourceGroups:       "test-rg",
+				Providers:            "Microsoft.CustomProviders",
+				ResourceProviders:    "test-provider",
+				ResourceTypeName:     "testAction",
+				ResourceInstanceName: "resource-with-dashes_and_underscores",
 			},
 			expected: "/subscriptions/test-sub/resourceGroups/test-rg/providers/Microsoft.CustomProviders/resourceProviders/test-provider/testAction/resource-with-dashes_and_underscores",
 		},
@@ -158,12 +158,12 @@ func TestParseCustomProviderHeaderRequestPath_EdgeCases(t *testing.T) {
 			name:        "path with extra segments",
 			requestPath: "/subscriptions/test-sub/resourceGroups/test-rg/providers/Microsoft.CustomProviders/resourceProviders/test-provider/testAction/testResource/extra/segments",
 			expectedResult: CustomProviderRequestPath{
-				Subscriptions:     "test-sub",
-				ResourceGroups:    "test-rg",
-				Providers:         "Microsoft.CustomProviders",
-				ResourceProviders: "test-provider",
-				Action:            "testAction",
-				ResourceName:      "testResource",
+				Subscriptions:        "test-sub",
+				ResourceGroups:       "test-rg",
+				Providers:            "Microsoft.CustomProviders",
+				ResourceProviders:    "test-provider",
+				ResourceTypeName:     "testAction",
+				ResourceInstanceName: "testResource",
 			},
 			expectError: false,
 		},
@@ -171,12 +171,12 @@ func TestParseCustomProviderHeaderRequestPath_EdgeCases(t *testing.T) {
 			name:        "path with empty segments",
 			requestPath: "/subscriptions//resourceGroups//providers/Microsoft.CustomProviders/resourceProviders//testAction/testResource",
 			expectedResult: CustomProviderRequestPath{
-				Subscriptions:     "",
-				ResourceGroups:    "",
-				Providers:         "Microsoft.CustomProviders",
-				ResourceProviders: "",
-				Action:            "testAction",
-				ResourceName:      "testResource",
+				Subscriptions:        "",
+				ResourceGroups:       "",
+				Providers:            "Microsoft.CustomProviders",
+				ResourceProviders:    "",
+				ResourceTypeName:     "testAction",
+				ResourceInstanceName: "testResource",
 			},
 			expectError: false,
 		},
@@ -190,12 +190,12 @@ func TestParseCustomProviderHeaderRequestPath_EdgeCases(t *testing.T) {
 			name:        "path with special characters",
 			requestPath: "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/test-rg_with_underscores/providers/Microsoft.CustomProviders/resourceProviders/test-provider-123/cyberarkSafes/safe.with.dots-and-dashes_123",
 			expectedResult: CustomProviderRequestPath{
-				Subscriptions:     "12345678-1234-1234-1234-123456789012",
-				ResourceGroups:    "test-rg_with_underscores",
-				Providers:         "Microsoft.CustomProviders",
-				ResourceProviders: "test-provider-123",
-				Action:            "cyberarkSafes",
-				ResourceName:      "safe.with.dots-and-dashes_123",
+				Subscriptions:        "12345678-1234-1234-1234-123456789012",
+				ResourceGroups:       "test-rg_with_underscores",
+				Providers:            "Microsoft.CustomProviders",
+				ResourceProviders:    "test-provider-123",
+				ResourceTypeName:     "cyberarkSafes",
+				ResourceInstanceName: "safe.with.dots-and-dashes_123",
 			},
 			expectError: false,
 		},
@@ -203,12 +203,12 @@ func TestParseCustomProviderHeaderRequestPath_EdgeCases(t *testing.T) {
 			name:        "path with leading and trailing slashes",
 			requestPath: "///subscriptions/test-sub/resourceGroups/test-rg/providers/Microsoft.CustomProviders/resourceProviders/test-provider/testAction/testResource///",
 			expectedResult: CustomProviderRequestPath{
-				Subscriptions:     "test-sub",
-				ResourceGroups:    "test-rg",
-				Providers:         "Microsoft.CustomProviders",
-				ResourceProviders: "test-provider",
-				Action:            "testAction",
-				ResourceName:      "testResource",
+				Subscriptions:        "test-sub",
+				ResourceGroups:       "test-rg",
+				Providers:            "Microsoft.CustomProviders",
+				ResourceProviders:    "test-provider",
+				ResourceTypeName:     "testAction",
+				ResourceInstanceName: "testResource",
 			},
 			expectError: false,
 		},
@@ -244,11 +244,11 @@ func TestParseCustomProviderHeaderRequestPath_EdgeCases(t *testing.T) {
 				if result.ResourceProviders != tt.expectedResult.ResourceProviders {
 					t.Errorf("expected ResourceProviders %s, got %s", tt.expectedResult.ResourceProviders, result.ResourceProviders)
 				}
-				if result.Action != tt.expectedResult.Action {
-					t.Errorf("expected Action %s, got %s", tt.expectedResult.Action, result.Action)
+				if result.ResourceTypeName != tt.expectedResult.ResourceTypeName {
+					t.Errorf("expected ResourceTypeName %s, got %s", tt.expectedResult.ResourceTypeName, result.ResourceTypeName)
 				}
-				if result.ResourceName != tt.expectedResult.ResourceName {
-					t.Errorf("expected ResourceName %s, got %s", tt.expectedResult.ResourceName, result.ResourceName)
+				if result.ResourceInstanceName != tt.expectedResult.ResourceInstanceName {
+					t.Errorf("expected ResourceInstanceName %s, got %s", tt.expectedResult.ResourceInstanceName, result.ResourceInstanceName)
 				}
 			}
 		})

@@ -2,11 +2,27 @@
 
 This project implements an Azure Custom Provider that integrates with CyberArk Privileged Access Manager (PAM) to manage safes through Azure Resource Manager templates and Bicep.
 
+## Overview
+
+The Azure `CyberArkProvider`, is a custom provider enables you to:
+
+- Create CyberArk safes using a Bicep template
+- Create CyberArk accounts using a Bicep template
+
+## Prerequisites
+
+- Azure CLI installed and configured
+- Azure subscription with appropriate permissions
+- Access to CyberArk Privileged Cloud environment
+  - User creds with permissions to create safes and add accounts
+- Go 1.22+ installed
+- Docker installed
+
 ## Quick Start
 
-Get up and running in minutes with our guided setup:
+Get up and running in minutes with these steps.
 
-### 1. Clone and Configure
+### 1. Configure
 
 ```bash
 # Clone the repository (or navigate to your existing clone)
@@ -32,21 +48,24 @@ curl http://localhost:8080/health
 ./rebuild-and-run.sh --stop
 ```
 
-### 3. Quick Deploy to Azure
+### 3. Setup Azure
 
 ```bash
 # Setup Azure infrastructure (resource group and ACR)
 ./setup-azure-infrastructure.sh
+```
 
+### 4. Deploy to Azure
+
+```bash
 # Build Docker image and push to ACR using the build script
-./build-docker.sh         # Build the image
-./build-docker.sh --push  # Push the image to ACR
+./build-docker.sh --push
 
 # Deploy infrastructure
 ./deploy-infrastructure.sh
 ```
 
-### 4. Create Your First Safe
+### 5. Create Your First Safe
 
 ```bash
 # Source environment variables (if not already done)
@@ -57,57 +76,82 @@ source .env
 
 # Use the provided Bicep template
 NEW_SAFE_NAME="my-safe"
-
-az deployment group create \
+source .env && az deployment group create \
   --resource-group $RESOURCE_GROUP \
   --template-file templates/create-cyberark-safe.bicep \
-  --parameters safeName="$NEW_SAFE_NAME" \
-               customProviderName="$CUSTOM_PROVIDER_NAME"
+  --parameters customProviderName="CyberArkProvider" \
+               safeName="$NEW_SAFE_NAME"               
 ```
 
-### 5. Create Your First Account
+### 6. Create Your First Account
 
 Copy the parameters file, and add the parameters for your account.
 
+Edit the parameters file set the "account" property.  See [Account Definition Example](#account-definition-example).
+
 ```bash
-source .env
 cp templates/create-cyberark-account.parameters.json-example templates/create-cyberark-account.parameters.json
 
-# EDIT the parameters file
+# Edit parameters json file
+vi templates/create-cyberark-account.parameters.json
 
-az deployment group create \
+source .env && az deployment group create \
   --resource-group $RESOURCE_GROUP \
   --template-file templates/create-cyberark-account.bicep \
-  --parameters @templates/create-cyberark-account.parameters.json \
-  --debug
+  --parameters @templates/create-cyberark-account.parameters.json
  ```
 
----
+#### Account Definition Example
 
-## Overview
+Refer to the add account documentation for the full structure of the "account" property.  Look at the example below, the body shall be rendered as JSON object as the `account.value`.
 
-The Custom Provider enables you to:
+ REF: [CyberArk Privilege Cloud Add Account Doc](https://docs.cyberark.com/privilege-cloud-shared-services/latest/en/content/webservices/add%20account%20v10.htm#Bodyparameters)
 
-- Create CyberArk safes using a Bicep template
-- Create CyberArk accounts using a Bicep template
+Example definition that can be used in `create-cyberark-account.parameters.json` file.
 
-## Architecture
-
-- **Go Application**: Custom provider implementation using CyberArk PAM SDK
-- **Azure Container Apps**: Hosting platform for the custom provider
-- **Azure Container Registry**: Docker image storage
-- **Azure Custom Provider**: Resource type registration and routing
-
-## Prerequisites
-
-- Azure CLI installed and configured
-- Azure subscription with appropriate permissions
-- Access to CyberArk Privileged Cloud environment
-  - User creds with permissions to create safes and add accounts
-- Go 1.22+ installed
-- Docker installed
+```json
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "customProviderName": {
+            "value": "CyberArkProvider"
+        },
+        "account": {
+            "value": {
+                "safeName": "my-example-safe1",
+                "name": "my-example-account1",
+                "address": "10.0.0.1",
+                "userName": "pavel20i-user1",
+                "platformId": "UnixSSH",
+                "secretType": "key",
+                "secret": "my-example-password1",
+                "platformAccountProperties": {
+                    "key1": "value1",
+                    "key2": "value2"
+                },
+                "secretManagement": {
+                    "manualManagementReason": "Reason for disabling automatic secret management.",
+                    "automaticManagementEnabled": true
+                },
+                "remoteMachinesAccess": {
+                    "remoteMachines": "List of remote machines, separated by semicolons.",
+                    "accessRestrictedToRemoteMachines": true
+                }
+            }
+        }
+    }
+}
+```
 
 ## Monitoring and Troubleshooting
+
+### Troubleshooting
+
+- Check Container App logs for detailed error messages, `./fetch-container-logs.sh`
+- Use the health endpoint to verify service status
+- Monitor Azure Resource Manager deployment operations
+- Review CyberArk audit logs for API call details
 
 ### Health Checks
 
@@ -117,7 +161,7 @@ source .env
 
 # Store the container app FQDN in a variable
 CONTAINER_APP_FQDN=$(az containerapp show \
-  --name $CUSTOM_PROVIDER_NAME \
+  --name $CUSTOM_PROVIDER_APP_NAME \
   --resource-group $RESOURCE_GROUP \
   --query "properties.configuration.ingress.fqdn" \
   --output tsv)
@@ -130,33 +174,10 @@ curl "https://$CONTAINER_APP_FQDN/healthex"
 
 # Check Container App status
 az containerapp show \
-  --name $CUSTOM_PROVIDER_NAME \
+  --name $CUSTOM_PROVIDER_APP_NAME \
   --resource-group $RESOURCE_GROUP \
   --query "properties.runningStatus"
 ```
-
-## Security Considerations
-
-- Store CyberArk credentials securely using Azure Container Apps secrets
-- Use managed identities for Azure resource access
-- Enable HTTPS-only access for the Custom Provider
-- Regularly rotate CyberArk credentials
-- Monitor access logs for suspicious activity
-
-### Getting Help
-
-- Check Container App logs for detailed error messages
-- Use the health endpoint to verify service status
-- Monitor Azure Resource Manager deployment operations
-- Review CyberArk audit logs for API call details
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test locally using `./rebuild-and-run.sh`
-5. Submit a pull request
 
 ## License
 

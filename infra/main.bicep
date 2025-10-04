@@ -3,9 +3,6 @@ targetScope = 'resourceGroup'
 @description('The location for all resources')
 param location string = resourceGroup().location
 
-@description('The name of the custom provider')
-param customProviderName string
-
 @description('Environment name (dev, staging, prod)')
 param environment string = 'dev'
 
@@ -230,9 +227,9 @@ resource customProviderApp 'Microsoft.App/containerApps@2023-05-01' = {
   ]
 }
 
-// Create Azure Custom Provider
-resource customProvider 'Microsoft.CustomProviders/resourceProviders@2018-09-01-preview' = {
-  name: customProviderName
+// Create Azure Custom Provider with both resource types
+resource cyberarkCustomProvider 'Microsoft.CustomProviders/resourceProviders@2018-09-01-preview' = {
+  name: 'CyberArkProvider'
   location: location
   tags: tags
   properties: {
@@ -253,8 +250,9 @@ resource customProvider 'Microsoft.CustomProviders/resourceProviders@2018-09-01-
 
 // Outputs
 output containerAppUrl string = 'https://${customProviderApp.properties.configuration.ingress.fqdn}'
-output customProviderName string = customProvider.name
-output customProviderResourceId string = customProvider.id
 output logAnalyticsWorkspaceId string = logAnalytics.id
 output managedIdentityId string = managedIdentity.id
 output containerAppsEnvironmentId string = containerAppsEnvironment.id
+
+output customProviderName string = cyberarkCustomProvider.name
+output customProviderResourceId string = cyberarkCustomProvider.id

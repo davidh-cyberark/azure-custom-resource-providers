@@ -9,11 +9,7 @@ import (
 )
 
 func handleHealth(w http.ResponseWriter, r *http.Request) {
-	log.Printf("DEBUG: Health check requested from: %s", r.RemoteAddr)
-
-	// Get the public IP for the health check
-	publicIP := getPublicIP()
-	log.Printf("INFO: Health check - Container public IP: %s", publicIP)
+	LogRequestDebug("Health", r)
 
 	// Check environment variables
 	envStatus := "ok"
@@ -29,7 +25,6 @@ func handleHealth(w http.ResponseWriter, r *http.Request) {
 		"build_date": BuildDate,
 		"status":     "healthy",
 		"service":    "cyberark-custom-provider",
-		"publicIP":   publicIP,
 		"env_status": envStatus,
 	}
 
@@ -40,15 +35,14 @@ func handleHealth(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
-	log.Printf("DEBUG: Health check response sent successfully with IP: %s, env_status: %s", publicIP, envStatus)
+	log.Printf("INFO: Health check - Version: %s, Build date: %s, env_status: %s", Version, BuildDate, envStatus)
 }
 
 func handleHealthEx(w http.ResponseWriter, r *http.Request) {
-	log.Printf("DEBUG: Health check requested from: %s", r.RemoteAddr)
+	LogRequestDebug("HealthEx", r)
 
 	// Get the public IP for the health check
 	publicIP := getPublicIP()
-	log.Printf("INFO: Health check - Container public IP: %s", publicIP)
 
 	// Check environment variables
 	envStatus := "ok"
@@ -92,5 +86,5 @@ func handleHealthEx(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
-	log.Printf("DEBUG: Health check response sent successfully with IP: %s, env_status: %s", publicIP, envStatus)
+	log.Printf("INFO: Health check - Version: %s, Build date: %s, Container public IP: %s, env_status: %s", Version, BuildDate, publicIP, envStatus)
 }

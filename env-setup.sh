@@ -192,15 +192,15 @@ main() {
 
     echo
     header "🐳 Container Registry Configuration"
-    prompt_with_default "ACR name (must be globally unique)" "youracr" ACR_NAME
+    prompt_with_default "ACR name (alphanumeric only, must be globally unique)" "youracr" ACR_NAME
     validate_azure_name "$ACR_NAME" "acr" || exit 1
 
     ACR_LOGIN_SERVER="${ACR_NAME}.azurecr.io"
 
     echo
     header "📦 Custom Provider Configuration"
-    prompt_with_default "Custom provider name" "cyberark-custom-provider" CUSTOM_PROVIDER_NAME
-    prompt_with_default "Custom provider container image name" "cyberark-custom-provider" CONTAINER_IMAGE_NAME
+    prompt_with_default "Custom provider app name" "cyberark-cpapp" CUSTOM_PROVIDER_APP_NAME
+    prompt_with_default "Custom provider container image name" "cyberark-cpimg" CONTAINER_IMAGE_NAME
 
     echo
     header "🔐 CyberArk Configuration"
@@ -245,8 +245,8 @@ ACR_NAME="$ACR_NAME"
 ACR_LOGIN_SERVER="$ACR_LOGIN_SERVER"
 
 # Custom Provider Configuration
-CUSTOM_PROVIDER_NAME="$CUSTOM_PROVIDER_NAME" ## Default: cyberark-custom-provider
-CONTAINER_IMAGE_NAME="$CONTAINER_IMAGE_NAME" ## Default: cyberark-custom-provider
+CUSTOM_PROVIDER_APP_NAME="$CUSTOM_PROVIDER_APP_NAME" ## Default: cyberark-cpapp
+CONTAINER_IMAGE_NAME="$CONTAINER_IMAGE_NAME" ## Default: cyberark-cpimg
 CONTAINER_APPS_ENVIRONMENT="\${ENVIRONMENT}-env"
 
 # CyberArk Configuration

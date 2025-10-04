@@ -22,6 +22,8 @@ type SafeProperties struct {
 
 // handleSafe routes safe-related requests to appropriate handlers
 func handleSafe(w http.ResponseWriter, r *http.Request, cpRequest CustomProviderRequestPath) {
+	LogRequestDebug("Safe", r)
+
 	switch r.Method {
 	case "PUT":
 		handleCreateSafe(w, r, cpRequest)
@@ -34,6 +36,8 @@ func handleSafe(w http.ResponseWriter, r *http.Request, cpRequest CustomProvider
 
 // handleCreateSafe handles Azure Custom Provider resource creation (PUT method)
 func handleCreateSafe(w http.ResponseWriter, r *http.Request, cpRequest CustomProviderRequestPath) {
+	LogRequestDebug("CreateSafe", r)
+
 	var request SafeRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		sendJSONError(w, http.StatusBadRequest, "InvalidRequestBody", fmt.Sprintf("Invalid request body: %v", err))
@@ -54,8 +58,8 @@ func handleCreateSafe(w http.ResponseWriter, r *http.Request, cpRequest CustomPr
 
 	response := CustomProviderResponse{
 		ID:   cpRequest.ID(),
-		Name: cpRequest.ResourceName,
-		Type: fmt.Sprintf("Microsoft.CustomProviders/resourceProviders/%s", cpRequest.Action),
+		Name: cpRequest.ResourceInstanceName,
+		Type: fmt.Sprintf("Microsoft.CustomProviders/resourceProviders/%s", cpRequest.ResourceTypeName),
 		Properties: map[string]interface{}{
 			"safeName":          request.Properties.SafeName,
 			"safeID":            safeID,
@@ -71,7 +75,8 @@ func handleCreateSafe(w http.ResponseWriter, r *http.Request, cpRequest CustomPr
 
 // handleDeleteSafe handles Azure Custom Provider resource deletion
 func handleDeleteSafe(w http.ResponseWriter, r *http.Request, cpRequest CustomProviderRequestPath) {
-	_ = r // unused parameter for future implementation
+	LogRequestDebug("DeleteSafe", r)
+
 	pamClient, err := createPAMClient()
 	if err != nil {
 		sendJSONError(w, http.StatusInternalServerError, "PAMClientError", fmt.Sprintf("Failed to create PAM client: %v", err))
@@ -79,7 +84,7 @@ func handleDeleteSafe(w http.ResponseWriter, r *http.Request, cpRequest CustomPr
 	}
 
 	// For demonstration, we'll assume the safe name is the same as the resource name
-	err = deleteSafe(pamClient, cpRequest.ResourceName)
+	err = deleteSafe(pamClient, cpRequest.ResourceInstanceName)
 	if err != nil {
 		sendJSONError(w, http.StatusInternalServerError, "SafeDeletionError", fmt.Sprintf("Failed to delete safe: %v", err))
 		return
@@ -90,7 +95,7 @@ func handleDeleteSafe(w http.ResponseWriter, r *http.Request, cpRequest CustomPr
 
 // handleGetSafe handles Azure Custom Provider resource retrieval
 func handleGetSafe(w http.ResponseWriter, r *http.Request, cpRequest CustomProviderRequestPath) {
-	_ = r // r is reserved for later use
+	LogRequestDebug("GetSafe", r)
 
 	pamClient, err := createPAMClient()
 	if err != nil {
@@ -98,19 +103,26 @@ func handleGetSafe(w http.ResponseWriter, r *http.Request, cpRequest CustomProvi
 		return
 	}
 
-	safe, retcode, err := pamClient.GetSafeDetails(cpRequest.ResourceName)
+	safe, retcode, err := pamClient.GetSafeDetails(cpRequest.ResourceInstanceName)
 	if err != nil {
-		sendJSONError(w, http.StatusNotFound, "SafeNotFound", fmt.Sprintf("Failed to get safe: %v", err))
+		sendJSONError(w, retcode, "GetSafeDetailsError", fmt.Sprintf("Failed to get safe: %v", err))
+		return
+	}
+	// Not found is an explicit status that Azure ARM looks for, so, we handle it specifically here
+	if retcode == http.StatusNotFound {
+		sendJSONError(w, retcode, "SafeNotFound", fmt.Sprintf("Safe not found: %s", cpRequest.ResourceInstanceName))
 		return
 	}
 	if retcode >= 300 {
+		log.Printf("Get safe operation returned non-success: %v", safe)
 		sendJSONError(w, retcode, "GetSafeDetailsError", "Get safe operation returned non-success")
+		return
 	}
 
 	response := CustomProviderResponse{
 		ID:   cpRequest.ID(),
-		Name: cpRequest.ResourceName,
-		Type: "Microsoft.CustomProviders/resourceProviders/cyberarkSafes",
+		Name: cpRequest.ResourceInstanceName,
+		Type: fmt.Sprintf("Microsoft.CustomProviders/resourceProviders/%s", cpRequest.ResourceTypeName),
 		Properties: map[string]interface{}{
 			"safeName":          safe.SafeName,
 			"safeID":            safe.SafeURLID,
@@ -160,10 +172,3 @@ func deleteSafe(pamClient *pam.Client, safeName string) error {
 	log.Printf("Delete safe functionality not available in current SDK version for safe: %s", safeName)
 	return fmt.Errorf("delete safe functionality not implemented in current SDK version")
 }
-
-// // getSafe retrieves a safe using the PAM client
-// func getSafe(pamClient *pam.Client, safeName string) (*pam.GetSafeDetails, int, error) {
-// 	safe, retCode, err := pamClient.GetSafeDetails(safeName)
-
-// 	return &safe, fmt.Errorf("get safe not implemented")
-// }
